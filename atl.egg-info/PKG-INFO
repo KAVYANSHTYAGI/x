@@ -1,0 +1,16 @@
+Metadata-Version: 2.4
+Name: atl
+Version: 0.1.0
+Summary: Anchored Transport Likelihood: proper self-supervised alignment for event cameras, with faithful CMax-family baselines
+Requires-Python: >=3.9
+Requires-Dist: torch>=2.1
+Requires-Dist: numpy
+Requires-Dist: pyyaml
+Requires-Dist: h5py
+Requires-Dist: hdf5plugin
+Requires-Dist: opencv-python-headless
+Requires-Dist: tqdm
+Provides-Extra: keops
+Requires-Dist: pykeops; extra == "keops"
+Provides-Extra: dev
+Requires-Dist: pytest; extra == "dev"

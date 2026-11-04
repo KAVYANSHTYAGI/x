@@ -1,0 +1,13 @@
+torch>=2.1
+numpy
+pyyaml
+h5py
+hdf5plugin
+opencv-python-headless
+tqdm
+
+[dev]
+pytest
+
+[keops]
+pykeops

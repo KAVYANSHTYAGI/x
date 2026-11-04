@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "atl"
+version = "0.1.0"
+description = "Anchored Transport Likelihood: proper self-supervised alignment for event cameras, with faithful CMax-family baselines"
+requires-python = ">=3.9"
+dependencies = ["torch>=2.1", "numpy", "pyyaml", "h5py", "hdf5plugin", "opencv-python-headless", "tqdm"]
+
+[project.optional-dependencies]
+keops = ["pykeops"]
+dev = ["pytest"]
+
+[tool.setuptools.packages.find]
+include = ["atl*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
