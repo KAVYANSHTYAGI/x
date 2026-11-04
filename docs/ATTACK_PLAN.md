@@ -56,8 +56,32 @@ What went wrong along the way, kept on record:
 ## 2. Real data without learning — `scripts/exp_dsec_modelbased.py`
 
 Per-window coarse-to-fine dense flow on DSEC ground-truth windows (thun_00_a), same model and optimiser for each
-objective, scored against DSEC ground truth on valid pixels. Results: `outputs/dsec_modelbased.log` (pending at the
-time of writing).
+objective, scored against DSEC ground truth on valid pixels. Results: `outputs/dsec_modelbased.log`.
+
+Setup: 3 windows (12, 42, 74), 150k events each; grids 3×4 → 24×32; 60 Adam steps per level. Totals are
+pixel-weighted:
+
+| Objective | EPE | AE | 3PE | per-window EPE |
+|---|---|---|---|---|
+| zero flow | 8.99 | 77.5 | 79.6% | 10.75 / 8.56 / 7.99 |
+| CMax variance (t_ref=0) | 52.9 (collapses) | 101.9 | 98.7% | 64.0 / 82.1 / 22.0 |
+| CMax multi-reference | 4.76 | 30.3 | 57.4% | 4.97 / 5.88 / 3.74 |
+| gradient-magnitude focus (MPCM's term, 7 fixed refs) | 3.23 | 17.3 | 30.7% | **2.15** / 6.15 / 1.76 |
+| **anchored score (ours)** | **2.30** | **15.1** | **21.3%** | 2.32 / **3.41** / **1.42** |
+
+Caveat: this is one sequence and three windows. The focus row is MPCM's sharpness term without its KNN
+look-up table and TV, so it is not the full loss.
+
+**Suite F1–F4** (`outputs/suite_exact.md`):
+* **F1** reproduces the collapse table.
+* **F4:** FWL ranks the collapsed field first (361.9 vs truth 4.03) and RSAT does too (0.049 vs 0.712). The held-out
+  anchored score ranks the truth first.
+* **F2 and F3 did not separate the methods cleanly in this configuration.**
+  * All biases are 2–3%, except Taming (+150% at h* = 0.5).
+  * Our sliced score shows +7% at h* = 0.1 and **−6% in F3's zoom optimisation**.
+  * Suspected cause: the stochastic anchor jitter was not fixed between evaluations and steps in the suite, plus
+    field-of-view exit under expansion.
+  * **[todo]** rerun F2/F3 with deterministic seeds and the exact kernel before claiming anything there.
 
 ## 3. The decisive experiment (GPU)
 
