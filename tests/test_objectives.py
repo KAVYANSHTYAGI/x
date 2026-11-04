@@ -69,7 +69,7 @@ def test_anchored_exact_gradient_matches_reference(trans_sample):
     m1 = Translation(1, ev.height, ev.width, mode="linear", init=th)
     m2 = Translation(1, ev.height, ev.width, mode="linear", init=th)
     anchors = torch.arange(0, ev.n, 2)
-    o = AnchoredExact(h=1.2, n_anchors=None, smooth_anchors=False, dequantize=False)
+    o = AnchoredExact(h=1.2, n_anchors=None, smooth_anchors=False, dequantize=False, visibility=False)
     l1, _ = o.log_scores(ev, m1, anchors)
     l1.mean().backward()
     from atl.ops import reference as R

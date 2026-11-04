@@ -28,6 +28,28 @@ from .base import Objective
 from .cmax import _self_term
 
 
+@torch.no_grad()
+def visible_fraction(motion, xa, ta, ba, ev: EventPacket, tau: float, n_check: int = 16) -> torch.Tensor:
+    """Fraction of source events (within +-tau of the anchor) recorded while the anchor's scene content was inside
+    the field of view: content entering / leaving the frame has no sources at the other times, so the predictive
+    density must be normalised by the visible source mass (exposure correction).  Checked at n_check time slices,
+    weighted by the per-batch event counts in each slice."""
+    edges = torch.linspace(0, 1, n_check + 1, device=ev.device)
+    centres = 0.5 * (edges[:-1] + edges[1:])
+    sl = torch.clamp((ev.t * n_check).long(), 0, n_check - 1)
+    counts = torch.zeros(ev.batch_size, n_check, device=ev.device)
+    counts.index_put_((ev.b, sl), torch.ones_like(ev.t), accumulate=True)
+    vis = torch.zeros_like(ta); tot = torch.zeros_like(ta)
+    for k in range(n_check):
+        c = float(centres[k])
+        near = ((ta - c).abs() <= tau).to(ta.dtype)
+        y = motion.transport(xa, ta, c, ba)
+        inside = ((y[:, 0] >= 0) & (y[:, 0] <= ev.width - 1) & (y[:, 1] >= 0) & (y[:, 1] <= ev.height - 1)).to(ta.dtype)
+        w = counts[ba, k] * near
+        vis += w * inside; tot += w
+    return (vis / tot.clamp(min=1)).clamp(min=1e-3)
+
+
 def _pick_anchors(ev: EventPacket, n_anchors: Optional[int], gen: Optional[torch.Generator]) -> torch.Tensor:
     if n_anchors is None or n_anchors >= ev.n:
         return torch.arange(ev.n, device=ev.device)
@@ -41,7 +63,8 @@ class AnchoredExact(Objective):
 
     def __init__(self, h: float = 1.0, tau: float = 1.0, eps_frac: float = 1e-2, n_anchors: Optional[int] = 20000,
                  n_slices: int = 16, cut: float = 3.0, seed: Optional[int] = None, smooth_anchors: bool = True,
-                 dequantize: bool = True):
+                 dequantize: bool = True, visibility: bool = True, anchor_margin: float = 0.0):
+        self.visibility, self.anchor_margin = visibility, anchor_margin
         self.h, self.tau, self.eps_frac, self.n_anchors, self.n_slices, self.cut = h, tau, eps_frac, n_anchors, n_slices, cut
         # smooth_anchors: anchors ~ p * K_h, so the population score is -KL(p*K_h || q*K_h): proper at ANY h.
         # dequantize: uniform [-1/2, 1/2]^2 jitter of integer pixel coordinates (sources and anchors).
@@ -51,7 +74,10 @@ class AnchoredExact(Objective):
     def log_scores(self, ev: EventPacket, motion, anchors: Optional[torch.Tensor] = None):
         if not getattr(motion, "linear_at_event", False):
             raise ValueError("AnchoredExact needs a motion that is linear at the event; use AnchoredSliced")
-        anchors = _pick_anchors(ev, self.n_anchors, self.gen) if anchors is None else anchors
+        if anchors is None:
+            anchors = _pick_anchors(ev, self.n_anchors, self.gen)
+            if self.anchor_margin > 0:        # selection on RAW positions: independent of the motion, stays proper
+                anchors = anchors[ev.inside(ev.xy[anchors], margin=-self.anchor_margin)]
         xs = ev.xy
         if self.dequantize:
             xs = xs + (torch.rand(xs.shape, generator=self.gen).to(xs) - 0.5)
@@ -62,6 +88,8 @@ class AnchoredExact(Objective):
         S = ats_pair_sums(xs, ev.t, v, ev.b, ev.batch_size, ev.height, ev.width, anchors, self.h, self.tau,
                           self.cut, self.n_slices, anchor_xy=xa)
         Wn = window_counts(ev.t, ev.b, anchors, self.tau).clamp(min=1)
+        if self.visibility:
+            Wn = Wn * visible_fraction(motion, xa.detach(), ev.t[anchors], ev.b[anchors], ev, self.tau)
         eps = self.eps_frac / (ev.height * ev.width)
         return torch.log(eps + S / (Wn * 2 * math.pi * self.h ** 2)), anchors
 
@@ -81,8 +109,8 @@ class AnchoredSliced(Objective):
     def __init__(self, n_slices: int = 10, slices_per_step: Optional[int] = None, sigma: float = 1.0,
                  tau: float = 1.0, eps_frac: float = 1e-2, n_anchors_per_slice: Optional[int] = None,
                  logdet: bool = True, seed: Optional[int] = None, smooth_anchors: bool = True,
-                 dequantize: bool = True):
-        self.smooth_anchors, self.dequantize = smooth_anchors, dequantize
+                 dequantize: bool = True, visibility: bool = True):
+        self.smooth_anchors, self.dequantize, self.visibility = smooth_anchors, dequantize, visibility
         self.S, self.sps, self.sigma, self.tau, self.eps_frac = n_slices, slices_per_step, sigma, tau, eps_frac
         self.nap, self.logdet = n_anchors_per_slice, logdet
         self.gen = torch.Generator().manual_seed(seed) if seed is not None else None
@@ -130,6 +158,8 @@ class AnchoredSliced(Objective):
             else:
                 own = src[ai].to(val.dtype) * _self_term(a, self.sigma, ev.height, ev.width)
             nsrc = torch.bincount(ev.b[si], minlength=ev.batch_size).to(val.dtype)[ev.b[ai]] - src[ai].to(val.dtype)
+            if self.visibility:
+                nsrc = nsrc * visible_fraction(motion, xsm[ai].detach(), ev.t[ai], ev.b[ai], ev, self.tau)
             rho = (val - own).clamp(min=0) / nsrc.clamp(min=1)
             out.append(torch.log(eps + rho) + ld)
             idx_all.append(ai)

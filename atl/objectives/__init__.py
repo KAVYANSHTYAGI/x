@@ -22,7 +22,8 @@ def build(name: str, **kw) -> Objective:
             "num_bins", "num_knn", "smooth_weight", "lut", "t_ref", "scale_by_dt", "polarity_split", "sigma")}),
         # ---- ours (anchored)
         "ats_exact": lambda: AnchoredExact(**{k: v for k, v in kw.items() if k in (
-            "h", "tau", "eps_frac", "n_anchors", "n_slices", "seed")}),
+            "h", "tau", "eps_frac", "n_anchors", "n_slices", "seed", "smooth_anchors", "dequantize", "visibility",
+            "anchor_margin")}),
         "ats_sliced": lambda: AnchoredSliced(**{k: v for k, v in kw.items() if k in (
             "n_slices", "slices_per_step", "sigma", "tau", "eps_frac", "n_anchors_per_slice", "seed")}),
     }
