@@ -127,7 +127,7 @@ class PairPlan:
     GW: int
 
 
-def build_pair_plan(x, t, v, b, B, H, W, anchors, h, tau, cut=3.0, n_slices=16) -> PairPlan:
+def build_pair_plan(x, t, v, b, B, H, W, anchors, h, tau, cut=3.0, n_slices=16, anchor_xy=None) -> PairPlan:
     dev = x.device
     S = int(n_slices)
     delta = 1.0 / S
@@ -136,7 +136,7 @@ def build_pair_plan(x, t, v, b, B, H, W, anchors, h, tau, cut=3.0, n_slices=16) 
         vmax = float(vd.norm(dim=1).max()) if vd.numel() else 0.0
         cell = max(cut * h + vmax * delta / 2 + 1e-3, 1.0)
         # grid covers the anchors' bounding box plus one cell (sources further away cannot contribute)
-        xa_all = x[anchors].float()
+        xa_all = (x[anchors] if anchor_xy is None else anchor_xy).float()
         if xa_all.numel():
             ox, oy = float(xa_all[:, 0].min()) - cell, float(xa_all[:, 1].min()) - cell
             ex, ey = float(xa_all[:, 0].max()) + cell, float(xa_all[:, 1].max()) + cell
@@ -166,7 +166,7 @@ def build_pair_plan(x, t, v, b, B, H, W, anchors, h, tau, cut=3.0, n_slices=16) 
         # anchors
         ta = t[anchors]
         sa = torch.clamp(torch.floor(ta / delta), 0, S - 1).long()
-        xa = x[anchors].float()
+        xa = (x[anchors] if anchor_xy is None else anchor_xy).float()
         acx = torch.floor((xa[:, 0] - ox) / cell).long().clamp(0, GW - 1)
         acy = torch.floor((xa[:, 1] - oy) / cell).long().clamp(0, GH - 1)
         anc_cell = torch.stack([b[anchors] * S + sa, acx, acy], 1).contiguous()
@@ -193,14 +193,14 @@ class _ATSPair(torch.autograd.Function):
         return gv, None, None, None, None
 
 
-def ats_pair_sums(x, t, v, b, B, H, W, anchors, h, tau, cut=3.0, n_slices=16, force_ref=False):
+def ats_pair_sums(x, t, v, b, B, H, W, anchors, h, tau, cut=3.0, n_slices=16, force_ref=False, anchor_xy=None):
     """S_i = sum_{j != i} 1[|t_i - t_j| <= tau] exp(-|x_i - x_j - v_j (t_i - t_j)|^2 / 2h^2) for anchors i.
 
     ``x`` are RAW event positions (never moved), ``v`` per-event velocities in px per unit (normalised) time.
     Gradient flows to ``v`` only (data are fixed)."""
     if force_ref or not ext_supports(x):
-        return ref.ats_pair_sums(x.float(), t.float(), v.float(), b, anchors, h, tau, cut)
-    plan = build_pair_plan(x, t, v, b, B, H, W, anchors, h, tau, cut, n_slices)
+        return ref.ats_pair_sums(x.float(), t.float(), v.float(), b, anchors, h, tau, cut, anchor_xy=anchor_xy)
+    plan = build_pair_plan(x, t, v, b, B, H, W, anchors, h, tau, cut, n_slices, anchor_xy=anchor_xy)
     return _ATSPair.apply(v.float(), plan, h, tau, cut)
 
 

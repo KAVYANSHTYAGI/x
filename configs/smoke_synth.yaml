@@ -1,0 +1,12 @@
+# CPU smoke test of the full training loop on synthetic data
+dataset: synthetic
+num_bins: 15
+K: 1
+base_channels: 8
+loss: {name: ats_exact, n_anchors: 3000}
+batch_size: 2
+num_workers: 0
+epochs: 1
+max_steps: 3
+log_every: 1
+out_dir: runs/smoke

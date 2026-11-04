@@ -52,14 +52,15 @@ def gather_bilinear(img, pos, b):
     return out
 
 
-def ats_pair_sums(x, t, v, b, anchors, h, tau, cut=3.0, chunk=2048):
+def ats_pair_sums(x, t, v, b, anchors, h, tau, cut=3.0, chunk=2048, anchor_xy=None):
     """Brute force S_i = sum_{j != i, same batch, |t_i-t_j|<=tau, |r|<=cut h} exp(-|r|^2/2h^2),
     r = x_i - x_j - v_j (t_i - t_j).  O(M N); differentiable w.r.t. v."""
     outs = []
     for s in range(0, anchors.numel(), chunk):
         a = anchors[s:s + chunk]
+        xa = x[a] if anchor_xy is None else anchor_xy[s:s + chunk]
         dt = t[a][:, None] - t[None, :]                                      # (m, N)
-        r = x[a][:, None, :] - x[None] - v[None] * dt[..., None]
+        r = xa[:, None, :] - x[None] - v[None] * dt[..., None]
         d2 = (r * r).sum(-1)
         ok = (b[a][:, None] == b[None]) & (dt.abs() <= tau) & (d2 <= (cut * h) ** 2)
         ok = ok & (a[:, None] != torch.arange(t.numel(), device=t.device)[None])

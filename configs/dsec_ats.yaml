@@ -1,0 +1,13 @@
+# Ours: anchored transport score (exact pair kernel, linear prior) -- everything else identical to dsec_mpcm.yaml
+dataset: dsec
+data_root: data/dsec/train
+train_windows: images
+num_bins: 15
+K: 1
+basis: polynomial
+loss: {name: ats_exact, h: 1.0, tau: 1.0, n_anchors: 60000, n_slices: 16, eps_frac: 0.01}
+anneal: [4.0, 1.0, 0.3]             # kernel width 4 px -> 1 px over the first 30% of training
+batch_size: 7
+lr: 1.0e-4
+epochs: 100
+out_dir: runs/dsec_ats

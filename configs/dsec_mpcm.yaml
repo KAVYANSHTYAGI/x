@@ -1,0 +1,12 @@
+# Baseline: MotionPriorCMax loss (Hamann et al. ECCV'24), official DSEC settings (config/exe/flow_training/dsec.yaml)
+dataset: dsec
+data_root: data/dsec/train          # MotionPriorCMax layout or official download layout
+train_windows: images
+num_bins: 15
+K: 1
+basis: polynomial
+loss: {name: mpcm, num_bins: 15, num_knn: 32, smooth_weight: 0.003, lut: 4, t_ref: random, scale_by_dt: true, polarity_split: true}
+batch_size: 7                       # x 2 GPUs = 14 (official)
+lr: 1.0e-4
+epochs: 100
+out_dir: runs/dsec_mpcm

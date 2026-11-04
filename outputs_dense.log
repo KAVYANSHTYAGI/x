@@ -1,0 +1,17 @@
+
+=== scene translation  events=50000  mean|flow|=20.9px
+  mpcm           init=gt    EPE   0.00 ->   2.90 px   loss(end)-loss(GT) = -0.003  (7s)  <-- prefers non-GT field
+  mpcm           init=zero  EPE  20.88 ->   4.82 px   loss(end)-loss(GT) = +0.006  (6s)
+  mpcm_no_tv     init=gt    EPE   0.00 ->   5.15 px   loss(end)-loss(GT) = -0.011  (6s)  <-- prefers non-GT field
+  mpcm_no_tv     init=zero  EPE  20.88 ->   6.89 px   loss(end)-loss(GT) = -0.002  (6s)  <-- prefers non-GT field
+  mpcm_knn1      init=gt    EPE   0.00 ->   1.91 px   loss(end)-loss(GT) = -0.025  (4s)  <-- prefers non-GT field
+  mpcm_knn1      init=zero  EPE  20.88 ->  16.27 px   loss(end)-loss(GT) = +0.242  (4s)
+  gradmag_rand   init=gt    EPE   0.00 ->   2.77 px   loss(end)-loss(GT) = -0.087  (12s)  <-- prefers non-GT field
+  gradmag_rand   init=zero  EPE  20.88 ->  17.89 px   loss(end)-loss(GT) = +0.085  (14s)
+  cmax_var       init=gt    EPE   0.00 ->   2.76 px   loss(end)-loss(GT) = -0.218  (11s)  <-- prefers non-GT field
+  cmax_var       init=zero  EPE  20.88 ->  19.12 px   loss(end)-loss(GT) = +0.002  (11s)
+  cmax_multiref  init=gt    EPE   0.00 ->   2.72 px   loss(end)-loss(GT) = -0.136  (32s)  <-- prefers non-GT field
+  cmax_multiref  init=zero  EPE  20.88 ->  18.90 px   loss(end)-loss(GT) = +0.048  (83s)
+  ats_exact      init=gt    EPE   0.00 ->   2.09 px   loss(end)-loss(GT) = -0.002  (816s)  <-- prefers non-GT field
+  ats_exact      init=zero  EPE  20.88 ->  11.15 px   loss(end)-loss(GT) = +0.027  (40s)
+  ats_sliced     init=gt    EPE   0.00 ->   3.84 px   loss(end)-loss(GT) = +0.001  (57s)

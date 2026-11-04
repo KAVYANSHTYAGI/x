@@ -40,20 +40,33 @@ class AnchoredExact(Objective):
     reference_frame = False
 
     def __init__(self, h: float = 1.0, tau: float = 1.0, eps_frac: float = 1e-2, n_anchors: Optional[int] = 20000,
-                 n_slices: int = 16, cut: float = 3.0, seed: Optional[int] = None):
+                 n_slices: int = 16, cut: float = 3.0, seed: Optional[int] = None, smooth_anchors: bool = True,
+                 dequantize: bool = True):
         self.h, self.tau, self.eps_frac, self.n_anchors, self.n_slices, self.cut = h, tau, eps_frac, n_anchors, n_slices, cut
+        # smooth_anchors: anchors ~ p * K_h, so the population score is -KL(p*K_h || q*K_h): proper at ANY h.
+        # dequantize: uniform [-1/2, 1/2]^2 jitter of integer pixel coordinates (sources and anchors).
+        self.smooth_anchors, self.dequantize = smooth_anchors, dequantize
         self.gen = torch.Generator().manual_seed(seed) if seed is not None else None
 
     def log_scores(self, ev: EventPacket, motion, anchors: Optional[torch.Tensor] = None):
         if not getattr(motion, "linear_at_event", False):
             raise ValueError("AnchoredExact needs a motion that is linear at the event; use AnchoredSliced")
         anchors = _pick_anchors(ev, self.n_anchors, self.gen) if anchors is None else anchors
-        v = motion.velocity(ev.xy, ev.t, ev.b)
-        S = ats_pair_sums(ev.xy, ev.t, v, ev.b, ev.batch_size, ev.height, ev.width, anchors, self.h, self.tau,
-                          self.cut, self.n_slices)
+        xs = ev.xy
+        if self.dequantize:
+            xs = xs + (torch.rand(xs.shape, generator=self.gen).to(xs) - 0.5)
+        xa = xs[anchors]
+        if self.smooth_anchors:
+            xa = xa + self.h * torch.randn(xa.shape, generator=self.gen).to(xa)
+        v = motion.velocity(xs, ev.t, ev.b)
+        S = ats_pair_sums(xs, ev.t, v, ev.b, ev.batch_size, ev.height, ev.width, anchors, self.h, self.tau,
+                          self.cut, self.n_slices, anchor_xy=xa)
         Wn = window_counts(ev.t, ev.b, anchors, self.tau).clamp(min=1)
         eps = self.eps_frac / (ev.height * ev.width)
         return torch.log(eps + S / (Wn * 2 * math.pi * self.h ** 2)), anchors
+
+    def set_bandwidth(self, h: float):
+        self.h = float(h)
 
     def __call__(self, ev, motion):
         ls, _ = self.log_scores(ev, motion)
@@ -67,7 +80,9 @@ class AnchoredSliced(Objective):
 
     def __init__(self, n_slices: int = 10, slices_per_step: Optional[int] = None, sigma: float = 1.0,
                  tau: float = 1.0, eps_frac: float = 1e-2, n_anchors_per_slice: Optional[int] = None,
-                 logdet: bool = True, seed: Optional[int] = None):
+                 logdet: bool = True, seed: Optional[int] = None, smooth_anchors: bool = True,
+                 dequantize: bool = True):
+        self.smooth_anchors, self.dequantize = smooth_anchors, dequantize
         self.S, self.sps, self.sigma, self.tau, self.eps_frac = n_slices, slices_per_step, sigma, tau, eps_frac
         self.nap, self.logdet = n_anchors_per_slice, logdet
         self.gen = torch.Generator().manual_seed(seed) if seed is not None else None
@@ -81,6 +96,10 @@ class AnchoredSliced(Objective):
         if self.sps is not None and self.sps < S:
             slices = torch.randperm(S, generator=self.gen)[: self.sps].tolist()
         eps = self.eps_frac / (ev.height * ev.width)
+        xs = ev.xy
+        if self.dequantize:
+            xs = xs + (torch.rand(xs.shape, generator=self.gen).to(xs) - 0.5)
+        xsm = xs + self.sigma * torch.randn(xs.shape, generator=self.gen).to(xs) if self.smooth_anchors else xs
         out, idx_all = [], []
         for s in slices:
             c = (s + 0.5) * delta
@@ -96,16 +115,20 @@ class AnchoredSliced(Objective):
             if self.nap is not None and ai.numel() > self.nap:
                 ai = ai[torch.randperm(ai.numel(), generator=self.gen)[: self.nap].to(dev)]
             si = torch.nonzero(src).squeeze(1)
-            y = motion.transport(ev.xy[si], ev.t[si], c, ev.b[si])
+            y = motion.transport(xs[si], ev.t[si], c, ev.b[si])
             img = splat(y, torch.ones_like(ev.t[si]), ev.b[si], ev.batch_size, ev.height, ev.width,
                         kernel="gauss", sigma=self.sigma)
             if self.logdet:
-                a, ld = motion.transport_logdet(ev.xy[ai], ev.t[ai], c, ev.b[ai])
+                a, ld = motion.transport_logdet(xsm[ai], ev.t[ai], c, ev.b[ai])
             else:
-                a, ld = motion.transport(ev.xy[ai], ev.t[ai], c, ev.b[ai]), 0.0
+                a, ld = motion.transport(xsm[ai], ev.t[ai], c, ev.b[ai]), 0.0
             val = gather(img, a, ev.b[ai])
-            # leave-one-out: remove the anchor's own splat when it is also a source (identical transport)
-            own = src[ai].to(val.dtype) * _self_term(a, self.sigma, ev.height, ev.width)
+            # leave-one-out: remove the anchor's own splat (its source copy sits at transport(xs_i))
+            if self.smooth_anchors:
+                y_own = motion.transport(xs[ai], ev.t[ai], c, ev.b[ai])
+                own = src[ai].to(val.dtype) * _cross_term(a, y_own, self.sigma, ev.height, ev.width)
+            else:
+                own = src[ai].to(val.dtype) * _self_term(a, self.sigma, ev.height, ev.width)
             nsrc = torch.bincount(ev.b[si], minlength=ev.batch_size).to(val.dtype)[ev.b[ai]] - src[ai].to(val.dtype)
             rho = (val - own).clamp(min=0) / nsrc.clamp(min=1)
             out.append(torch.log(eps + rho) + ld)
@@ -115,10 +138,30 @@ class AnchoredSliced(Objective):
             return z, z.long()
         return torch.cat(out), torch.cat(idx_all)
 
+    def set_bandwidth(self, h: float):
+        self.sigma = float(h)
+
     def __call__(self, ev, motion):
         ls, _ = self.log_scores(ev, motion)
         s = ls.mean() if ls.numel() else ev.t.new_zeros(())
         return {"loss": -s, "score": s.detach()}
+
+
+def _cross_term(a: torch.Tensor, y: torch.Tensor, sigma: float, H: int, W: int) -> torch.Tensor:
+    """Bilinear look-up at ``a`` of the Gaussian splat centred at ``y`` (truncated at radius ceil(3 sigma))."""
+    R = int(math.ceil(3 * sigma))
+    cy0, cx0 = torch.round(y[:, 1]), torch.round(y[:, 0])
+    x0, y0 = torch.floor(a[:, 0]), torch.floor(a[:, 1])
+    ax, ay = a[:, 0] - x0, a[:, 1] - y0
+    s = torch.zeros_like(ax)
+    norm = 1.0 / (2 * math.pi * sigma * sigma)
+    for dy, wy in ((0, 1 - ay), (1, ay)):
+        for dx, wx in ((0, 1 - ax), (1, ax)):
+            px, py = x0 + dx, y0 + dy
+            ok = ((px >= 0) & (px < W) & (py >= 0) & (py < H) & ((px - cx0).abs() <= R) & ((py - cy0).abs() <= R))
+            d2 = (px - y[:, 0]) ** 2 + (py - y[:, 1]) ** 2
+            s = s + wx * wy * ok.to(a.dtype) * norm * torch.exp(-d2 / (2 * sigma * sigma))
+    return s
 
 
 # --------------------------------------------------------------------------------------------- metrics
