@@ -1,0 +1,29 @@
+
+window thun_00_a_000012  events(used)=150000  valid px=56945  mean|gt|=10.75
+  zero               EPE 10.753  AE  79.00  3PE  82.41%   (0s)
+  cmax_var           EPE 64.004  AE 133.18  3PE  99.66%   (20s)
+  cmax_multiref      EPE  4.966  AE  29.59  3PE  61.37%   (57s)
+  gradmag_multiref   EPE  2.152  AE  14.75  3PE  21.16%   (339s)
+  ats_exact          EPE  2.318  AE  12.48  3PE  16.29%   (201s)
+
+window thun_00_a_000042  events(used)=150000  valid px=58740  mean|gt|=8.56
+  zero               EPE  8.560  AE  75.77  3PE  71.54%   (0s)
+  cmax_var           EPE 82.055  AE 107.64  3PE  99.95%   (16s)
+  cmax_multiref      EPE  5.875  AE  37.89  3PE  67.51%   (49s)
+  gradmag_multiref   EPE  6.150  AE  25.27  3PE  59.41%   (182s)
+  ats_exact          EPE  3.406  AE  25.41  3PE  44.01%   (194s)
+
+window thun_00_a_000074  events(used)=150000  valid px=75699  mean|gt|=7.99
+  zero               EPE  7.985  AE  77.81  3PE  83.64%   (0s)
+  cmax_var           EPE 21.986  AE  74.00  3PE  96.99%   (17s)
+  cmax_multiref      EPE  3.738  AE  24.95  3PE  46.47%   (48s)
+  gradmag_multiref   EPE  1.762  AE  12.97  3PE  15.57%   (324s)
+  ats_exact          EPE  1.418  AE   9.10  3PE   7.40%   (197s)
+
+=== totals (pixel-weighted) ===
+  zero               EPE  8.985  AE  77.54  1PE  98.06%  3PE  79.56%
+  cmax_var           EPE 52.925  AE 101.93  1PE  99.80%  3PE  98.69%
+  cmax_multiref      EPE  4.759  AE  30.30  1PE  90.43%  3PE  57.36%
+  gradmag_multiref   EPE  3.225  AE  17.28  1PE  68.60%  3PE  30.69%
+  ats_exact          EPE  2.296  AE  15.11  1PE  65.84%  3PE  21.28%
+ALL_DONE

@@ -33,6 +33,7 @@ def bezier_params_to_coeff_grid(params: torch.Tensor, out_hw=None) -> torch.Tens
 
 
 def trajectories_from_bflow(params: torch.Tensor, out_hw, tile: int = 4) -> PixelTrajectories:
+    """Wrap official Bezier parameters as :class:`PixelTrajectories` (any atl loss can then train them)."""
     K = params.shape[1] // 2
     return PixelTrajectories(bezier_params_to_coeff_grid(params, out_hw), K=K, basis_kind="bezier", tile=tile)
 
@@ -47,6 +48,7 @@ def load_official_raft_spline(repo: str = "/home/user/third_party/MotionPriorCMa
 
 @torch.no_grad()
 def check_against_official(params: torch.Tensor, repo: str = "/home/user/third_party/MotionPriorCMax", atol=1e-4):
+    """Assert that our conversion reproduces the official curve displacements (run once before training)."""
     if repo not in sys.path:
         sys.path.insert(0, repo)
     from src.models.raft_spline.curves.bezier import BezierCurves  # type: ignore

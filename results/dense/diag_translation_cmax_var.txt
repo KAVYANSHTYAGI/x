@@ -1,0 +1,8 @@
+objective=cmax_var scene=translation
+  EPE interior(margin 10) 2.75   border 3.40
+  EPE interior(margin 20) 2.61   border 3.20
+  EPE interior(margin 30) 2.25   border 3.14
+  held-out events with margin>= 0px (n=50000):  score(fitted)-score(GT) = +0.00721  (relative +0.3797)
+  held-out events with margin>=10px (n=32457):  score(fitted)-score(GT) = +0.00949  (relative +0.3951)
+  held-out events with margin>=20px (n=17045):  score(fitted)-score(GT) = +0.01919  (relative +0.4343)
+  held-out events with margin>=30px (n=9045):  score(fitted)-score(GT) = +0.02807  (relative +0.4679)

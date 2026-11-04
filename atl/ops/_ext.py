@@ -43,6 +43,7 @@ def get_ext():
 
 
 def ext_supports(t: torch.Tensor) -> bool:
+    """True if the compiled extension can handle tensors on this device."""
     ext = get_ext()
     if ext is None:
         return False

@@ -38,6 +38,7 @@ def basis(t: torch.Tensor, K: int, kind: str = "polynomial") -> torch.Tensor:
 
 
 class PixelTrajectories(Motion):
+    """One continuous-time trajectory per tile, coefficients predicted by a network (see module docstring)."""
     def __init__(self, coeff_grid: torch.Tensor, K: int, basis_kind: str = "polynomial", tile: int = 4,
                  assign: str = "invert", n_fixed_point: int = 6):
         super().__init__()
@@ -60,6 +61,7 @@ class PixelTrajectories(Motion):
         return torch.stack([cx, cy], -1)                  # (N, K, 2) in (x, y)
 
     def displacement(self, p, b, t):
+        """Displacement q(p, t) - p of the trajectories starting at ``p``, evaluated at times ``t``."""
         g = basis(t, self.K, self.basis_kind)             # (N, K)
         return (self._coeff_at(p, b) * g[..., None]).sum(1)
 
@@ -82,6 +84,7 @@ class PixelTrajectories(Motion):
 
     # tile trajectories (B, n_t, Hq*Wq, 2) in (x, y), as used by MotionPriorCMax's look-up table
     def tile_trajectories(self, times: torch.Tensor) -> torch.Tensor:
+        """Positions (B, n_t, n_tiles, 2) of every tile trajectory at the given times."""
         B, Hq, Wq, K = self.B, self.Hq, self.Wq, self.K
         dev = self.tile_c.device
         ys = torch.arange(Hq, device=dev, dtype=torch.float32) * self.tile + self.offset
@@ -102,4 +105,5 @@ class PixelTrajectories(Motion):
         return torch.nn.functional.interpolate(f, size=(H, W), mode="bilinear", align_corners=False)
 
     def regulariser_fields(self, B, H, W):
+        """Tile coefficient grid (B, 2K, Hq, Wq) for smoothness regularisers."""
         return self.tile_c

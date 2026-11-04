@@ -19,6 +19,7 @@ from torch import nn
 
 
 class Motion(nn.Module):
+    """Base class: subclasses implement :meth:`transport` (and :meth:`velocity` if linear at the event)."""
     linear_at_event: bool = False
 
     def transport(self, xy: torch.Tensor, t: torch.Tensor, t_dst, b: torch.Tensor) -> torch.Tensor:
@@ -29,6 +30,7 @@ class Motion(nn.Module):
 
     # dense displacement of the pixel grid from t0 to t1 (prediction / evaluation / regularisers)
     def flow_field(self, B: int, H: int, W: int, t0: float = 0.0, t1: float = 1.0) -> torch.Tensor:
+        """Dense displacement of the pixel grid from ``t0`` to ``t1`` as (B, 2, H, W) (x, y order)."""
         dev = next(self.parameters()).device if any(True for _ in self.parameters()) else "cpu"
         ys, xs = torch.meshgrid(torch.arange(H, device=dev, dtype=torch.float32),
                                 torch.arange(W, device=dev, dtype=torch.float32), indexing="ij")
@@ -53,6 +55,7 @@ class Motion(nn.Module):
 
 
 def as_time(t_dst, like: torch.Tensor) -> torch.Tensor:
+    """Broadcast a scalar or tensor target time to the shape of ``like``."""
     if torch.is_tensor(t_dst):
         return t_dst.to(like.dtype).expand_as(like) if t_dst.dim() == 0 else t_dst.to(like.dtype)
     return torch.full_like(like, float(t_dst))

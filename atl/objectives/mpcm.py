@@ -43,6 +43,7 @@ def knn_indices(queries: torch.Tensor, points: torch.Tensor, k: int, chunk: int 
 
 
 class MotionPriorCMaxLoss(Objective):
+    """Official MotionPriorCMax loss: focus (1 / mean |Sobel| of the IWE) + lambda * Charbonnier TV."""
     name = "mpcm_focus"
 
     def __init__(self, num_bins: int = 15, num_knn: int = 32, smooth_weight: float = 0.003, lut: int = 4,
@@ -53,6 +54,7 @@ class MotionPriorCMaxLoss(Objective):
         self.focus_norm = focus_norm
 
     def lut_flow(self, motion: PixelTrajectories, H: int, W: int, t_ref: torch.Tensor) -> torch.Tensor:
+        """Look-up table (B, bins, Hq, Wq, 2): mean displacement-to-t_ref of the K nearest trajectories per cell."""
         dev = motion.tile_c.device
         edges = torch.linspace(0, 1, self.num_bins + 1, device=dev)
         t_mid = 0.5 * (edges[:-1] + edges[1:])

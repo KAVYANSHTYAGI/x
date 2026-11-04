@@ -34,6 +34,7 @@ GRID = [0.05, 0.2, 0.35, 0.5, 0.65, 0.8, 0.95]
 
 
 def make(name):
+    """Objective by name (optionally with TV)."""
     o = {"cmax_var": lambda: Sharpness("variance", t_ref=0.0),
          "cmax_multiref": lambda: Sharpness("variance", t_ref=[0.0, 0.5, 1.0]),
          "gradmag_multiref": lambda: Sharpness("grad_l1", t_ref=GRID, form="inv",

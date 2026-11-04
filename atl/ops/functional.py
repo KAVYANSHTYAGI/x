@@ -81,6 +81,7 @@ class _Gather(torch.autograd.Function):
 
 
 def gather(img: torch.Tensor, pos: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
+    """Bilinear sample of a (B, H, W) image at event positions (zero outside); differentiable in both."""
     if ext_supports(pos):
         return _Gather.apply(img, pos, b)
     return ref.gather_bilinear(img, pos, b)
@@ -88,6 +89,7 @@ def gather(img: torch.Tensor, pos: torch.Tensor, b: torch.Tensor) -> torch.Tenso
 
 # ------------------------------------------------------------------------------------------- blur
 def gaussian_kernel1d(sigma: float, device, dtype=torch.float32):
+    """Normalised 1-D Gaussian kernel of radius ceil(3 sigma)."""
     r = max(int(math.ceil(3 * sigma)), 1)
     x = torch.arange(-r, r + 1, device=device, dtype=dtype)
     k = torch.exp(-x * x / (2 * sigma * sigma))
@@ -128,6 +130,7 @@ class PairPlan:
 
 
 def build_pair_plan(x, t, v, b, B, H, W, anchors, h, tau, cut=3.0, n_slices=16, anchor_xy=None) -> PairPlan:
+    """Host-side spatial hash of (source, slice) pairs sorted by (batch, slice, cell) for the pair kernel."""
     dev = x.device
     S = int(n_slices)
     delta = 1.0 / S
@@ -216,6 +219,7 @@ def window_counts(t: torch.Tensor, b: torch.Tensor, idx: torch.Tensor, tau: floa
 
 # ------------------------------------------------------------------------------------------- voxel grid
 def voxel_grid(pos, t, p, b, B, C, H, W, normalize: str | None = "mean_std") -> torch.Tensor:
+    """Trilinear polarity voxel grid (B, C, H, W), optionally mean/std normalised over non-zero voxels."""
     with torch.no_grad():
         if ext_supports(pos):
             vox = get_ext().voxel_grid(_f32(pos), _f32(t), _f32(p), b.contiguous().long(), B, C, H, W)

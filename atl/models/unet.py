@@ -9,6 +9,7 @@ from torch import nn
 
 
 class DoubleConv(nn.Module):
+    """(3x3 conv -> BN -> ReLU) x 2."""
     def __init__(self, cin, cout, cmid=None):
         super().__init__()
         cmid = cmid or cout
@@ -21,6 +22,7 @@ class DoubleConv(nn.Module):
 
 
 class Down(nn.Module):
+    """2x max-pool followed by :class:`DoubleConv`."""
     def __init__(self, cin, cout):
         super().__init__()
         self.net = nn.Sequential(nn.MaxPool2d(2), DoubleConv(cin, cout))
@@ -30,6 +32,7 @@ class Down(nn.Module):
 
 
 class Up(nn.Module):
+    """2x transposed-conv upsampling, skip concatenation, :class:`DoubleConv`."""
     def __init__(self, cin, cout):
         super().__init__()
         self.up = nn.ConvTranspose2d(cin, cin // 2, 2, stride=2)
@@ -43,6 +46,7 @@ class Up(nn.Module):
 
 
 class UNet(nn.Module):
+    """5-level U-Net (base..16*base channels): voxel grid (B, in_ch, H, W) -> coefficient grid (B, out_ch, H, W)."""
     def __init__(self, in_ch: int = 15, out_ch: int = 2, base: int = 64):
         super().__init__()
         c = [base, base * 2, base * 4, base * 8, base * 16]

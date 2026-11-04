@@ -1,5 +1,5 @@
 """DSEC-Flow test-set inference -> benchmark submission folder (zip and upload to the DSEC website).
-    python scripts/dsec_submit.py --ckpt runs/dsec_ats/best.pt --test_root data/dsec/test \
+    python scripts/tools/dsec_submit.py --ckpt runs/dsec_ats/best.pt --test_root data/dsec/test \
         --timestamps data/dsec/test_forward_optical_flow_timestamps --out submissions/ats
 Layout written: <out>/<sequence>/<file_index:06d>.png  (16-bit, R = x*128 + 2^15, G = y*128 + 2^15, B = 1)."""
 import argparse

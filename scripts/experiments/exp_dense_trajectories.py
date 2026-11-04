@@ -34,6 +34,7 @@ SCENES = {"translation": ("translation", [20.0, 6.0]), "zoom": ("zoom", [0.35]),
 
 
 def make_objective(name):
+    """Training-time version of an objective (with its own randomness)."""
     return {
         "mpcm": lambda: MotionPriorCMaxLoss(),
         "mpcm_no_tv": lambda: MotionPriorCMaxLoss(smooth_weight=0.0),
@@ -51,6 +52,7 @@ def make_objective(name):
 
 
 def with_tv(name, obj):
+    """Add the identical Charbonnier TV prior to every non-MotionPriorCMax objective."""
     if name.startswith("mpcm") or args.tv <= 0:
         return obj
     return Regularized(obj, "tv", args.tv)
@@ -84,6 +86,7 @@ def evaluator(name):
 
 
 def coeff_from_flow(flow, H, W):
+    """GT flow (2, H, W) -> degree-1 coefficient grid in MotionPriorCMax channel order (y, x)."""
     g = torch.zeros(1, 2, H, W)
     g[0, 0], g[0, 1] = flow[1], flow[0]              # MotionPriorCMax channel order (y, x)
     return g
@@ -101,6 +104,7 @@ for scene in args.scenes.split(","):
     print(f"\n=== scene {scene}  events={ev.n}  mean|flow|={float(s.flow_gt.norm(dim=0)[mask].mean()):.1f}px")
 
     def epe(motion):
+        """EPE of the motion's tile flow on pixels with events."""
         f = motion.flow_field(1, args.H, args.W)[0].detach()
         return float((f - s.flow_gt).norm(dim=0)[mask].mean())
 

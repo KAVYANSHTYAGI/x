@@ -53,10 +53,10 @@ What went wrong along the way, kept on record:
 4. The target's own L1 gradient-magnitude focus does **not** collapse on parametric zoom paths. Its failure is the
    dense-field bias above, not collapse.
 
-## 2. Real data without learning — `scripts/exp_dsec_modelbased.py`
+## 2. Real data without learning — `scripts/experiments/exp_dsec_modelbased.py`
 
 Per-window coarse-to-fine dense flow on DSEC ground-truth windows (thun_00_a), same model and optimiser for each
-objective, scored against DSEC ground truth on valid pixels. Results: `outputs/dsec_modelbased.log`.
+objective, scored against DSEC ground truth on valid pixels. Results: `results/dsec/dsec_modelbased.log`.
 
 Setup: 3 windows (12, 42, 74), 150k events each; grids 3×4 → 24×32; 60 Adam steps per level. Totals are
 pixel-weighted:
@@ -72,7 +72,7 @@ pixel-weighted:
 Caveat: this is one sequence and three windows. The focus row is MPCM's sharpness term without its KNN
 look-up table and TV, so it is not the full loss.
 
-**Suite F1–F4** (`outputs/suite_exact.md`):
+**Suite F1–F4** (`results/suite/suite_exact.md`):
 * **F1** reproduces the collapse table.
 * **F4:** FWL ranks the collapsed field first (361.9 vs truth 4.03) and RSAT does too (0.049 vs 0.712). The held-out
   anchored score ranks the truth first.
@@ -92,8 +92,8 @@ Everything identical except the loss:
 
 **Step 0 — reproduce the baseline through our pipeline.**
 ```
-python scripts/convert_mpcm_checkpoint.py <official DSEC ckpt> runs/mpcm_official/best.pt
-python scripts/dsec_submit.py --ckpt runs/mpcm_official/best.pt ...      # must reproduce EPE 3.20 on the server
+python scripts/tools/convert_mpcm_checkpoint.py <official DSEC ckpt> runs/mpcm_official/best.pt
+python scripts/tools/dsec_submit.py --ckpt runs/mpcm_official/best.pt ...      # must reproduce EPE 3.20 on the server
 ```
 **Step 1 — retrain the baseline with our implementation of their loss** (`configs/dsec_mpcm.yaml`).
 Gate: within ~0.1 EPE of 3.20 on the validation sequences.

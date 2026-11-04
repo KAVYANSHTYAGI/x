@@ -8,3 +8,5 @@ outputs/
 data/
 *.ckpt
 .pytest_cache/
+atl.egg-info/
+*.egg-info/

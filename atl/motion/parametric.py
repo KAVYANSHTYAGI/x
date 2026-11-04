@@ -21,14 +21,17 @@ from .base import Motion, as_time
 
 
 class VectorFieldMotion(Motion):
+    """Autonomous velocity field v(x; theta) with ``mode='linear'`` (CMax warp) or ``'exact'`` (true flow)."""
     n_params: int = 0
 
     @property
-    def linear_at_event(self) -> bool:          # x' = x + v(x) dt exactly only for the classic linear warp
+    def linear_at_event(self) -> bool:
+        """True only for the classic linear warp x' = x + v(x) dt (enables the exact anchored pair kernel)."""
         return self.mode == "linear"
 
     def __init__(self, batch_size: int, height: int, width: int, mode: str = "linear", rk4_steps: int = 8,
                  init: Optional[torch.Tensor] = None):
+        """True for the classic linear warp only (enables the exact anchored pair kernel)."""
         super().__init__()
         self.H, self.W, self.mode, self.rk4_steps = height, width, mode, rk4_steps
         self.c = torch.tensor([(width - 1) / 2.0, (height - 1) / 2.0])
@@ -75,12 +78,14 @@ class VectorFieldMotion(Motion):
         return x
 
     def divergence(self, xy, b, delta: float = 0.5):
+        """div v at ``xy`` by central differences (used by Shiba's R_D surrogate)."""
         ex = xy.new_tensor([delta, 0.0]); ey = xy.new_tensor([0.0, delta])
         return ((self.field(xy + ex, b)[:, 0] - self.field(xy - ex, b)[:, 0]) +
                 (self.field(xy + ey, b)[:, 1] - self.field(xy - ey, b)[:, 1])) / (2 * delta)
 
 
 class Translation(VectorFieldMotion):
+    """v = (tx, ty): constant velocity."""
     n_params = 2
 
     def field(self, xy, b):
@@ -201,6 +206,7 @@ class DenseLinearFlow(VectorFieldMotion):
 
     @property
     def theta(self):
+        """Alias so that dense grids expose the same ``theta`` attribute as parametric models."""
         return self.grid
 
     def field(self, xy, b):
@@ -213,6 +219,7 @@ class DenseLinearFlow(VectorFieldMotion):
         return None
 
     def upsample(self, factor: int = 2):
+        """Refine the velocity grid by ``factor`` (coarse-to-fine optimisation)."""
         with torch.no_grad():
             Hg, Wg = self.grid.shape[-2:]
             new = torch.nn.functional.interpolate(self.grid, size=(Hg * factor, Wg * factor), mode="bilinear",
@@ -221,6 +228,7 @@ class DenseLinearFlow(VectorFieldMotion):
         return self
 
     def regulariser_fields(self, B, H, W):
+        """The velocity grid itself (for smoothness regularisers)."""
         return self.grid
 
 
@@ -237,6 +245,7 @@ def sample_grid(field: torch.Tensor, gpos: torch.Tensor, b: torch.Tensor) -> tor
     f = field.permute(0, 2, 3, 1).reshape(-1, C)
     base = b * (Hg * Wg)
     def at(yy, xx):
+        """Gather the field at integer grid indices (yy, xx) for every event."""
         return f[base + yy * Wg + xx]
     return (at(y0, x0) * ((1 - ax) * (1 - ay))[:, None] + at(y0, x1) * (ax * (1 - ay))[:, None] +
             at(y1, x0) * ((1 - ax) * ay)[:, None] + at(y1, x1) * (ax * ay)[:, None])

@@ -43,6 +43,7 @@ class Accumulator:
         self.n = 0
 
     def add(self, errs: Dict[str, float]):
+        """Add one batch of errors, weighted by its number of valid pixels."""
         n = errs["n"]
         for k, v in errs.items():
             if k != "n":
@@ -50,4 +51,5 @@ class Accumulator:
         self.n += n
 
     def result(self) -> Dict[str, float]:
+        """Pixel-weighted averages of all accumulated metrics."""
         return {k: v / max(self.n, 1) for k, v in self.s.items()}

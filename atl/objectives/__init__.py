@@ -1,3 +1,6 @@
+"""Alignment objectives: reference-frame baselines (CMax family, MotionPriorCMax) and anchored scores (ours).
+
+``build(name, **kw)`` is the registry used by configs, the trainer and the failure suite."""
 from .ats import AnchoredExact, AnchoredSliced, flow_warp_loss, heldout_score, rsat
 from .base import IWEConfig, Objective, make_iwe
 from .cmax import EMin, Regularized, Sharpness, STPPP, Timestamp, charbonnier_tv

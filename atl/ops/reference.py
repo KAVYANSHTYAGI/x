@@ -19,6 +19,7 @@ def _corners(pos: torch.Tensor):
 
 
 def splat_bilinear(pos, w, b, B, H, W):
+    """Reference bilinear vote of weighted events into a (B, H, W) image."""
     img = pos.new_zeros(B * H * W)
     for xx, yy, c in _corners(pos):
         m = (xx >= 0) & (xx < W) & (yy >= 0) & (yy < H)
@@ -28,6 +29,7 @@ def splat_bilinear(pos, w, b, B, H, W):
 
 
 def splat_gauss(pos, w, b, B, H, W, sigma, radius):
+    """Reference truncated-Gaussian splat (normalised by 2 pi sigma^2)."""
     img = pos.new_zeros(B * H * W)
     cx, cy = torch.round(pos[:, 0]).long(), torch.round(pos[:, 1]).long()
     norm = 1.0 / (2 * math.pi * sigma * sigma)
@@ -42,6 +44,7 @@ def splat_gauss(pos, w, b, B, H, W, sigma, radius):
 
 
 def gather_bilinear(img, pos, b):
+    """Reference bilinear sampling with zero padding."""
     B, H, W = img.shape
     flat = img.reshape(-1)
     out = pos.new_zeros(pos.shape[0])
@@ -69,6 +72,7 @@ def ats_pair_sums(x, t, v, b, anchors, h, tau, cut=3.0, chunk=2048, anchor_xy=No
 
 
 def voxel_grid(pos, t, p, b, B, C, H, W):
+    """Reference trilinear voxel grid."""
     vox = pos.new_zeros(B * C * H * W)
     tn = t * (C - 1)
     t0 = torch.floor(tn)

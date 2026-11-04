@@ -22,6 +22,7 @@ import torch
 
 @dataclass
 class EventPacket:
+    """Events of a whole batch, packed (flat arrays + batch index) and sorted by (batch, time)."""
     xy: torch.Tensor                    # (N, 2) float32
     t: torch.Tensor                     # (N,)   float32 in [0, 1]
     p: torch.Tensor                     # (N,)   float32 in {-1, +1}
@@ -38,6 +39,7 @@ class EventPacket:
                     normalize_time: bool = True, device="cpu") -> "EventPacket":
         """Single sample from numpy / torch arrays (t in any unit; normalised to [0, 1] if requested)."""
         def tt(a, dt):
+            """Convert numpy / torch input to a tensor of dtype ``dt`` on ``device``."""
             return torch.as_tensor(np.asarray(a), dtype=dt, device=device) if not torch.is_tensor(a) else a.to(device, dt)
         x, y, t, p = tt(x, torch.float32), tt(y, torch.float32), tt(t, torch.float64), tt(p, torch.float32)
         if normalize_time and t.numel() > 0:
@@ -53,6 +55,7 @@ class EventPacket:
 
     @staticmethod
     def collate(samples: Sequence["EventPacket"]) -> "EventPacket":
+        """Concatenate single-sample packets into one batch (batch index = position in ``samples``)."""
         assert len(samples) > 0
         h, w = samples[0].height, samples[0].width
         xs, ts, ps, bs, durs = [], [], [], [], []
@@ -67,18 +70,22 @@ class EventPacket:
     # ------------------------------------------------------------------ utilities
     @property
     def n(self) -> int:
+        """Number of events."""
         return int(self.t.numel())
 
     @property
     def device(self):
+        """Device of the event tensors."""
         return self.t.device
 
     @property
     def offsets(self) -> torch.Tensor:
+        """(B + 1,) start offsets of every sample in the packed arrays."""
         counts = torch.bincount(self.b, minlength=self.batch_size)
         return torch.cat([counts.new_zeros(1), torch.cumsum(counts, 0)])
 
     def to(self, device) -> "EventPacket":
+        """Copy of the packet on ``device``."""
         d = None if self.duration is None else self.duration.to(device)
         return EventPacket(self.xy.to(device), self.t.to(device), self.p.to(device), self.b.to(device),
                            self.batch_size, self.height, self.width, d, dict(self.meta))
@@ -95,6 +102,7 @@ class EventPacket:
         return self.select(u < frac), self.select(u >= frac)
 
     def subsample(self, k: int, generator: Optional[torch.Generator] = None) -> "EventPacket":
+        """Uniform random subset of ``k`` events (order preserved)."""
         if self.n <= k:
             return self
         idx = torch.randperm(self.n, generator=generator, device="cpu")[:k].to(self.device)
@@ -102,6 +110,7 @@ class EventPacket:
         return self.select(idx)
 
     def inside(self, xy: Optional[torch.Tensor] = None, margin: float = 0.0) -> torch.Tensor:
+        """Boolean mask of positions inside the image; ``margin`` > 0 enlarges, < 0 shrinks the box."""
         xy = self.xy if xy is None else xy
         return ((xy[:, 0] >= -margin) & (xy[:, 0] <= self.width - 1 + margin) &
                 (xy[:, 1] >= -margin) & (xy[:, 1] <= self.height - 1 + margin))

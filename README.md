@@ -1,72 +1,123 @@
-# atl — Anchored Transport Likelihood for event-camera motion
+# Anchored Transport Likelihood (`atl`)
 
-**Target paper:** MotionPriorCMax — Hamann, Wang, Asmanis, Chaney, Gallego, Daniilidis,
-*Motion-prior Contrast Maximization for Dense Continuous-Time Motion Estimation*, ECCV 2024
-(code: github.com/tub-rip/MotionPriorCMax, MIT).
-It is the self-supervised state of the art for dense, continuous-time event motion.
+**Proper self-supervised alignment for event cameras.** Every self-supervised event-motion loss in use today (contrast
+maximisation and its descendants) scores events *after warping them into a reference frame*. We show that this makes
+the loss **improper**: its optimum is not the true motion. That is why each method needs patches (random reference
+times, nearest-neighbour averaging, regulariser weights, or ground-truth "anchoring").
 
-**Numbers to beat**
+We replace it with the **anchored transport score**: each *raw* event is scored under the density predicted by all
+other events transported to its own timestamp. The evaluation point cannot move, so the deformation lever disappears.
+With smoothed, dequantised anchors and an exposure correction, the score is proper at every kernel width, and it needs
+no reference time and no regulariser weight.
+
+**Target paper:** MotionPriorCMax (Hamann et al., ECCV 2024), the self-supervised state of the art for dense,
+continuous-time event motion.
 
 | Benchmark | Metric | MotionPriorCMax |
 |---|---|---|
 | DSEC-Flow test | EPE / AE / %Out | 3.20 / 8.53 / 15.21 |
 | EVIMO2 300 ms | TEPE / TAE / %Out | 6.14 / 16.98 / 0.254 |
-| DSEC-Flow test (secondary target, Taming CMax ICCV'23) | EPE | 2.33 |
+| Secondary: Taming CMax (DSEC) | EPE | 2.33 |
+| Secondary: MultiCM (DSEC, model-based) | EPE | 3.47 |
 
-**Thesis.** Every loss in the contrast-maximisation family scores events *after moving them into a reference frame*.
-Such scores are not proper: their optimum is not the true motion. That is why each method needs its own patch:
-random or multiple reference times, KNN soft assignment, TV / divergence / deformation regularisers with tuned
-weights, or sparse ground truth for "anchoring" (STSC, CVPR'26).
+> **Status (Nov 2026).** Theory, code, a failure-mode suite and a small real-data comparison are done. **The network
+> training that decides the benchmark comparison has not been run** (no GPU in the development container). See
+> [`docs/GPU_RUNBOOK.md`](docs/GPU_RUNBOOK.md).
 
-**Our objective.** The *anchored transport score* scores every **raw** event under the other events transported to
-its own timestamp. It is proper and needs no reference time and no regulariser weight. It contains the exact
-change-of-variables term that the regularisers approximate. Theory: `../research_notes/PROPER_ALIGNMENT_MATH.md`.
+## Evidence so far
 
-## Layout
+All synthetic numbers use exact ground truth. Full tables and commands: [`docs/EXPERIMENTS.md`](docs/EXPERIMENTS.md).
 
+**Dense continuous-time trajectories (the target's own representation).** Fitted from the ground truth, then compared
+on *held-out* events in the scene interior (≥20 px from the border). Values are the preference for the drifted field
+over the truth; positive means the loss prefers the wrong field.
+
+| Objective | Translation | Zoom | Affine |
+|---|---|---|---|
+| CMax variance + TV | +43% | — | — |
+| Gradient-magnitude focus + TV | +18% | — | — |
+| MotionPriorCMax (official loss) | +0.85% | +2.2% | +1.05% |
+| **Anchored score (ours)** | **+0.04% (noise)** | **+0.09%** | **+0.05%** |
+| Interior drift, MPCM → ours | 2.9 → 1.2 px | 7.6 → 3.2 px | 5.7 → 2.9 px |
+
+**Collapse** (translation data, translation + zoom model):
+* CMax prefers zoom 41–102× over the truth;
+* multi-reference CMax 12–36×;
+* Shiba-regularised CMax, EMin, ST-PPP, Zhu and Taming timestamp losses also prefer wrong motion;
+* ours: proper along the whole path.
+
+**Unsupervised metrics.** FWL rates a collapsed field 90× better than the truth; RSAT also prefers it. Our held-out
+score ranks the truth first.
+
+**Real DSEC** (thun_00_a, 3 ground-truth windows, per-window fitting, no learning):
+
+| Objective | EPE | AE | 3PE |
+|---|---|---|---|
+| Ours | **2.30** | **15.1** | **21.3%** |
+| MPCM's gradient focus | 3.23 | 17.3 | 30.7% |
+| Multi-reference CMax | 4.76 | 30.3 | 57.4% |
+| CMax variance (collapses) | 52.9 | 101.9 | 98.7% |
+
+**Known weaknesses** are listed openly in [`docs/ATTACK_SURFACE.md`](docs/ATTACK_SURFACE.md). The main ones:
+* the upside is bounded: only ~56% of DSEC ground-truth pixels have events;
+* per-window convergence from zero is slower than MPCM's;
+* a border band drifts more than the interior.
+
+## Install
+
+```bash
+git clone <this repo> && cd anchored-transport-likelihood
+pip install -e ".[dev]"          # torch >= 2.1; the C++/CUDA extension JIT-compiles on first use
+pytest -q                        # 20 tests: kernels vs references (values + gradients), objectives, I/O
 ```
-csrc/            C++/OpenMP + CUDA kernels (sm_80/sm_90; 22-48 registers, no spills)
-  atl_cpu.cpp    splat (bilinear / Gaussian), bilinear gather, anchored pair sums (spatial hash), voxel grid
-  atl_cuda.cu    same loops, one thread per event / anchor, float atomics
-atl/ops          autograd wrappers, JIT build (atl/ops/_ext.py), pure-torch references (tests, fallback)
-atl/motion       parametric fields (translation, zoom, Sim2, affine, planar, 3-D rotation, dense) with the classic
-                 linear warp and the exact flow (augmented matrix exponential / RK4); MotionPriorCMax pixel
-                 trajectories (polynomial / Bezier, fixed-point inversion)
-atl/objectives   baselines: CMax variance, multi-reference, gradient magnitude, Shiba R_D / R_A, EMin, ST-PPP,
-                 Zhu'19 timestamp, Taming CMax timestamp, faithful MotionPriorCMax loss (mpcm.py);
-                 ours: AnchoredExact (pair kernel), AnchoredSliced (any motion); metrics FWL, RSAT, held-out score
-atl/data         DSEC (official + MotionPriorCMax layouts, flow PNG I/O, benchmark writer), synthetic DVS generator
-atl/models       U-Net matched to MotionPriorCMax's DSEC network
-atl/train        trainer with pluggable loss (DDP-ready); configs/dsec_mpcm.yaml vs configs/dsec_ats.yaml
-atl/suite        failure-mode suite F1-F4 (scripts/run_suite.py); dense test F6 (scripts/exp_dense_trajectories.py)
-tests/           ops vs references (values + grads), objectives, motion, I/O
-```
-
-## Attack plan
-
-1. **Failure suite** (synthetic, exact ground truth): each baseline objective is run through the same tasks.
-   * F1 collapse;
-   * F2 reference-time bias;
-   * F3 regulariser-weight dilemma;
-   * F4 unsupervised metrics fooled by collapse;
-   * F6 dense trajectories (the target's representation) optimised from the ground truth.
-2. **Model-based on real data.** DSEC ground-truth windows, per-window dense-flow optimisation under each
-   objective (a MultiCM-style comparison).
-3. **Learning, controlled.** Identical U-Net, data and schedule; only the loss changes. Evaluated on DSEC
-   (test-server submission via `atl.data.dsec.write_flow_png`) and on EVIMO2 continuous-time tracks.
-4. **Ablations of the target's patches under our loss** (they should become unnecessary):
-   * random t_ref;
-   * KNN-32;
-   * TV λ.
+Optional: `pip install pykeops` (faster KNN for the MotionPriorCMax baseline on GPU).
 
 ## Quick start
 
+```bash
+python scripts/experiments/scan_collapse.py exact          # one-screen collapse comparison of all losses
+python scripts/experiments/run_suite.py --mode exact       # failure suite F1-F4 -> outputs/suite_exact.md
+python scripts/experiments/diag_dense_drift.py --objective mpcm --scene zoom    # dense held-out bias test
+python scripts/train.py --config configs/dsec_mpcm.yaml    # baseline: MotionPriorCMax loss
+python scripts/train.py --config configs/dsec_ats.yaml     # ours: only the loss differs
+python bench/bench_ops.py --device cuda --events 1000000   # kernel / loss timings
 ```
-pip install -e .                                   # extension JIT-compiles on first use (CUDA if available)
-pytest -q                                          # ops, objectives, I/O
-python scripts/scan_collapse.py exact              # one-screen collapse comparison
-python scripts/run_suite.py --mode exact           # F1-F4 -> outputs/suite_exact.md
-python scripts/exp_dense_trajectories.py           # F6
-python scripts/train.py --config configs/dsec_mpcm.yaml   # baseline
-python scripts/train.py --config configs/dsec_ats.yaml    # ours (only the loss differs)
+
+## Repository map
+
 ```
+atl/                 the Python package (see atl/README.md)
+  core/              EventPacket: packed, time-sorted event batches
+  ops/               differentiable ops; C++/CUDA fast paths + pure-torch references
+  motion/            parametric / dense / continuous-time pixel-trajectory motion models
+  objectives/        baselines (CMax family, MotionPriorCMax) and ours (anchored scores); metrics
+  data/              synthetic DVS generator, DSEC, EVIMO2
+  models/            U-Net (matched to MotionPriorCMax) and the EVIMO2 RAFT-spline adapter
+  estimators/        model-based (per-window) optimisation
+  train/             self-supervised trainer with a pluggable loss
+  eval/              EPE / AE / NPE and trajectory metrics
+  suite/             failure-mode suite F1-F4
+csrc/                C++ (OpenMP) and CUDA kernels (see csrc/README.md, docs/KERNELS.md)
+configs/             training configs (baseline vs ours)
+scripts/             train.py, tools/ (checkpoint conversion, DSEC submission), experiments/
+tests/               unit tests
+bench/               timing harness
+results/             committed evidence (tables, logs) behind every number above
+docs/                theory, architecture, file-by-file code guide, kernels, experiments, plans
+```
+
+## Documentation
+
+| Document | Contents |
+|---|---|
+| [`docs/THEORY.md`](docs/THEORY.md) | Definitions, theorems, proofs and corrections |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Layers, data flow, conventions, how to extend |
+| [`docs/CODE_GUIDE.md`](docs/CODE_GUIDE.md) | Every file explained |
+| [`docs/KERNELS.md`](docs/KERNELS.md) | C++/CUDA design, layouts, complexity, build and verification |
+| [`docs/EXPERIMENTS.md`](docs/EXPERIMENTS.md) | Every experiment: command, result, interpretation |
+| [`docs/GPU_RUNBOOK.md`](docs/GPU_RUNBOOK.md) | Step-by-step for the decisive GPU runs |
+| [`docs/ATTACK_PLAN.md`](docs/ATTACK_PLAN.md) | How we beat the target |
+| [`docs/ATTACK_SURFACE.md`](docs/ATTACK_SURFACE.md) | Weaknesses, reviewer attacks, fixes |
+| [`docs/RESEARCH_LOG.md`](docs/RESEARCH_LOG.md) | How we got here, including the ideas that failed |
+
+Third-party code: see [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).

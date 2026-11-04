@@ -22,6 +22,7 @@ def fit(objective, motion_fn: Callable[[], object], params: List[torch.Tensor], 
     t0 = time.time()
     for it in range(steps):
         def closure():
+            """One objective evaluation + backward (LBFGS needs a closure; Adam uses it once)."""
             opt.zero_grad()
             out = objective(ev, motion_fn())
             out["loss"].backward()

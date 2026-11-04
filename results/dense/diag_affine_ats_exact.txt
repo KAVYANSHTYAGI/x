@@ -1,0 +1,8 @@
+objective=ats_exact scene=affine
+  EPE interior(margin 10) 3.65   border 6.99
+  EPE interior(margin 20) 2.94   border 5.98
+  EPE interior(margin 30) 2.39   border 5.35
+  held-out events with margin>= 0px (n=20483):  score(fitted)-score(GT) = +0.19602  (relative +0.0257)
+  held-out events with margin>=10px (n=10002):  score(fitted)-score(GT) = +0.00349  (relative +0.0005)
+  held-out events with margin>=20px (n=4573):  score(fitted)-score(GT) = +0.00368  (relative +0.0005)
+  held-out events with margin>=30px (n=1351):  score(fitted)-score(GT) = +0.01139  (relative +0.0020)

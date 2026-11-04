@@ -27,6 +27,7 @@ from ..ops import voxel_grid
 
 @dataclass
 class TrainConfig:
+    """All training settings (YAML-loadable); the loss is a dict passed to ``atl.objectives.build``."""
     # data
     dataset: str = "dsec"                 # "dsec" | "synthetic"
     data_root: str = "data/dsec/train"
@@ -59,6 +60,7 @@ class TrainConfig:
 
     @staticmethod
     def from_yaml(path) -> "TrainConfig":
+        """Load a :class:`TrainConfig` from a YAML file."""
         import yaml
         d = yaml.safe_load(open(path))
         return TrainConfig(**d)
@@ -73,6 +75,7 @@ def _ddp():
 
 
 def build_datasets(cfg: TrainConfig):
+    """Train / validation datasets and image size for ``cfg.dataset``."""
     if cfg.dataset == "dsec":
         from ..data.dsec import DSECFlowDataset, TRAIN_SEQS, VAL_SEQS
         train = DSECFlowDataset(cfg.data_root, TRAIN_SEQS, windows=cfg.train_windows, max_events=None)
@@ -97,6 +100,7 @@ def _collate_fn(cfg, H, W):
 
 
 class Trainer:
+    """Owns model, loss, optimiser, data loaders; runs training, validation and checkpointing."""
     def __init__(self, cfg: TrainConfig):
         self.cfg = cfg
         self.rank, self.world = _ddp()
@@ -127,6 +131,7 @@ class Trainer:
 
     # ------------------------------------------------------------------------------------------------
     def motion_from_batch(self, batch):
+        """Voxelise the batch, run the network, wrap the output as pixel trajectories."""
         ev = batch["events"].to(self.dev)
         vox = voxel_grid(ev.xy, ev.t, ev.p, ev.b, ev.batch_size, self.cfg.num_bins, self.H, self.W)
         coeff = self.model(vox)
@@ -145,6 +150,7 @@ class Trainer:
             self.loss_fn.set_bandwidth(h0 + (h1 - h0) * u)
 
     def train(self):
+        """Main loop: optimise, log every ``log_every`` steps, validate and checkpoint every ``val_every`` epochs."""
         cfg = self.cfg
         log = open(self.out / "log.jsonl", "a") if self.rank == 0 else None
         t0 = time.time()
@@ -190,6 +196,7 @@ class Trainer:
 
     @torch.no_grad()
     def validate(self):
+        """Pixel-weighted EPE / AE / NPE on the validation windows that have ground truth."""
         self.model.eval()
         acc = Accumulator()
         for batch in self.val_dl:
@@ -202,5 +209,6 @@ class Trainer:
         return acc.result()
 
     def save(self, name):
+        """Save model weights, step and config to ``out_dir/name``."""
         m = self.model.module if hasattr(self.model, "module") else self.model
         torch.save({"model": m.state_dict(), "step": self.step, "config": asdict(self.cfg)}, self.out / name)

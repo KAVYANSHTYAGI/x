@@ -1,0 +1,8 @@
+objective=mpcm scene=zoom
+  EPE interior(margin 10) 9.88   border 18.88
+  EPE interior(margin 20) 7.58   border 16.41
+  EPE interior(margin 30) 6.47   border 14.46
+  held-out events with margin>= 0px (n=27266):  score(fitted)-score(GT) = +0.04045  (relative +0.1011)
+  held-out events with margin>=10px (n=13561):  score(fitted)-score(GT) = +0.02830  (relative +0.0443)
+  held-out events with margin>=20px (n=7098):  score(fitted)-score(GT) = +0.02703  (relative +0.0215)
+  held-out events with margin>=30px (n=2470):  score(fitted)-score(GT) = +0.13945  (relative +0.0382)

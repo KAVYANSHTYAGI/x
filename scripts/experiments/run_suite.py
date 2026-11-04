@@ -14,6 +14,7 @@ a = ap.parse_args()
 
 
 def table(rows):
+    """Markdown table from a list of dict rows."""
     if not rows:
         return ""
     keys = list(rows[0].keys())

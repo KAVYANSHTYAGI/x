@@ -2,7 +2,7 @@
 
 Step zero of the comparison: evaluate their released weights through *our* data/eval path and check that we
 reproduce their validation numbers before training anything.
-    python scripts/convert_mpcm_checkpoint.py weights/<their>.ckpt runs/mpcm_official/best.pt
+    python scripts/tools/convert_mpcm_checkpoint.py weights/<their>.ckpt runs/mpcm_official/best.pt
 """
 import re
 import sys

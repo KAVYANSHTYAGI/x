@@ -58,6 +58,7 @@ def _pick_anchors(ev: EventPacket, n_anchors: Optional[int], gen: Optional[torch
 
 
 class AnchoredExact(Objective):
+    """Anchored transport score with the exact C++/CUDA pair kernel (motion must be linear at the event)."""
     name = "ats_exact"
     reference_frame = False
 
@@ -72,6 +73,7 @@ class AnchoredExact(Objective):
         self.gen = torch.Generator().manual_seed(seed) if seed is not None else None
 
     def log_scores(self, ev: EventPacket, motion, anchors: Optional[torch.Tensor] = None):
+        """Per-anchor log predictive densities (and the anchor indices)."""
         if not getattr(motion, "linear_at_event", False):
             raise ValueError("AnchoredExact needs a motion that is linear at the event; use AnchoredSliced")
         if anchors is None:
@@ -94,6 +96,7 @@ class AnchoredExact(Objective):
         return torch.log(eps + S / (Wn * 2 * math.pi * self.h ** 2)), anchors
 
     def set_bandwidth(self, h: float):
+        """Set the kernel width h (bandwidth annealing)."""
         self.h = float(h)
 
     def __call__(self, ev, motion):
@@ -103,6 +106,7 @@ class AnchoredExact(Objective):
 
 
 class AnchoredSliced(Objective):
+    """Anchored transport score for any motion model (Gaussian splats at slice centres + exact small-step log-det)."""
     name = "ats_sliced"
     reference_frame = False
 
@@ -117,6 +121,7 @@ class AnchoredSliced(Objective):
 
     def log_scores(self, ev: EventPacket, motion, anchor_mask: Optional[torch.Tensor] = None,
                    source_mask: Optional[torch.Tensor] = None):
+        """Per-anchor log predictive densities over the selected slices (and the anchor indices)."""
         S, dev = self.S, ev.device
         delta = 1.0 / S
         sl = torch.clamp(torch.floor(ev.t / delta), 0, S - 1).long()
@@ -169,6 +174,7 @@ class AnchoredSliced(Objective):
         return torch.cat(out), torch.cat(idx_all)
 
     def set_bandwidth(self, h: float):
+        """Set the splat kernel width (bandwidth annealing)."""
         self.sigma = float(h)
 
     def __call__(self, ev, motion):

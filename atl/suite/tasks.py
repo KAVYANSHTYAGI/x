@@ -28,6 +28,7 @@ GRID = [0.05, 0.2, 0.35, 0.5, 0.65, 0.8, 0.95]
 
 
 def objectives(mode: str = "exact", deterministic: bool = True) -> Dict[str, object]:
+    """The objectives compared by the suite (deterministic versions for evaluation)."""
     rand = GRID if deterministic else "random"
     objs = {
         "CMax variance (t_ref=0)": Sharpness("variance", t_ref=0.0),
@@ -53,6 +54,7 @@ def _loss(obj, ev, m):
 
 
 def f1_collapse(mode="exact", seed=3, steps=80, lr=0.05) -> List[dict]:
+    """F1: preference along a contraction path + optimisation from the truth."""
     s = simulate("translation", [25.0, 5.0], H=96, W=128, seed=seed, max_events=40000)
     ev = s.events
     rows = []
@@ -72,6 +74,7 @@ def f1_collapse(mode="exact", seed=3, steps=80, lr=0.05) -> List[dict]:
 
 
 def f2_reference_bias(h_true=(0.1, 0.25, 0.5), seed=7, mode="exact") -> List[dict]:
+    """F2: relative bias of the 1-D optimum under a true zoom, for several zoom rates."""
     rows = []
     data = {h: simulate("zoom", [h], H=96, W=128, seed=seed, max_events=40000).events for h in h_true}
     for name, obj in objectives(mode).items():
@@ -93,6 +96,7 @@ def f2_reference_bias(h_true=(0.1, 0.25, 0.5), seed=7, mode="exact") -> List[dic
 
 
 def f3_lambda(seed=5, mode="exact", lambdas=(0.0, 1e-2, 1e-1, 1.0, 10.0, 100.0), steps=80, lr=0.05) -> List[dict]:
+    """F3: Shiba-regularised CMax over a lambda sweep (translation and zoom scenes) vs ours."""
     rows = []
     ev_t = simulate("translation", [25.0, 5.0], H=96, W=128, seed=seed, max_events=40000).events
     ev_z = simulate("zoom", [0.4], H=96, W=128, seed=seed, max_events=40000).events
@@ -122,6 +126,7 @@ def f3_lambda(seed=5, mode="exact", lambdas=(0.0, 1e-2, 1e-1, 1.0, 10.0, 100.0),
 
 
 def f4_metrics(seed=9, mode="exact") -> List[dict]:
+    """F4: ranking of candidate motions by FWL, RSAT and the held-out anchored score."""
     s = simulate("translation", [25.0, 5.0], H=96, W=128, seed=seed, max_events=40000)
     ev = s.events
     cands = {"truth": [25.0, 5.0, 0.0], "collapsed (h=+8)": [25.0, 5.0, 8.0], "collapsed (h=-8)": [25.0, 5.0, -8.0],

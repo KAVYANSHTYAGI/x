@@ -34,6 +34,7 @@ def _metric(iwe: torch.Tensor, metric: str) -> torch.Tensor:
 
 
 class Sharpness(Objective):
+    """Sharpness of the IWE at one or several reference times (variance, mean square, gradient L1/L2)."""
     def __init__(self, metric: str = "variance", t_ref=0.0, iwe: Optional[IWEConfig] = None, form: str = "neg",
                  name: Optional[str] = None):
         self.metric, self.t_ref, self.form = metric, t_ref, form
@@ -41,6 +42,7 @@ class Sharpness(Objective):
         self.name = name or f"sharp[{metric},tref={t_ref}]"
 
     def sharpness(self, ev: EventPacket, motion):
+        """Mean sharpness over the reference times."""
         vals = []
         for tr in ref_times(self.t_ref, ev.device):
             xy = motion.transport(ev.xy, ev.t, tr, ev.b)
@@ -161,6 +163,7 @@ class Regularized(Objective):
         self.name = f"{base.name}+{weight:g}*R_{reg}"
 
     def penalty(self, ev, motion):
+        """Value of the regulariser R for the current motion."""
         if self.reg == "tv":
             f = motion.regulariser_fields(ev.batch_size, ev.height, ev.width)
             return charbonnier_tv(f) if f is not None else ev.t.new_zeros(())

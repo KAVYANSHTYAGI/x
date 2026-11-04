@@ -1,0 +1,8 @@
+objective=mpcm scene=affine
+  EPE interior(margin 10) 6.42   border 9.84
+  EPE interior(margin 20) 5.69   border 8.80
+  EPE interior(margin 30) 5.53   border 8.06
+  held-out events with margin>= 0px (n=20483):  score(fitted)-score(GT) = +0.01067  (relative +0.0261)
+  held-out events with margin>=10px (n=10002):  score(fitted)-score(GT) = +0.00876  (relative +0.0122)
+  held-out events with margin>=20px (n=4573):  score(fitted)-score(GT) = +0.01600  (relative +0.0105)
+  held-out events with margin>=30px (n=1351):  score(fitted)-score(GT) = +0.09412  (relative +0.0156)

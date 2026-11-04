@@ -16,6 +16,7 @@ from ..ops import blur, splat
 
 
 class Objective:
+    """Callable ``(events, motion) -> {'loss': ...}``; ``loss`` is minimised."""
     name = "objective"
     reference_frame = True        # evaluates at warped positions (improper on contraction classes; see theory)
 
@@ -28,6 +29,7 @@ class Objective:
 
 @dataclass
 class IWEConfig:
+    """How an image of warped events is built (kernel, width, polarity split, masking, dt weighting)."""
     kernel: str = "bilinear"            # "bilinear" vote (+ optional Gaussian blur) or "gauss" splat
     sigma: float = 1.0                  # blur / kernel width (px)
     polarity: str = "pooled"            # "pooled" | "split" (one IWE per polarity, MotionPriorCMax)
@@ -59,6 +61,7 @@ def make_iwe(ev: EventPacket, xy_ref: torch.Tensor, t_ref, cfg: IWEConfig,
 
 
 def sobel(img: torch.Tensor):
+    """Sobel x / y gradients of a (B, H, W) image (zero padding)."""
     kx = img.new_tensor([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]]).view(1, 1, 3, 3)
     ky = img.new_tensor([[-1, -2, -1], [0, 0, 0], [1, 2, 1]]).view(1, 1, 3, 3)
     x = img[:, None]

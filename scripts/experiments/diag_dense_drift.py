@@ -1,6 +1,6 @@
 """Where does dense-field drift come from?  Fit pixel trajectories from GT under an objective, then compare GT vs
 fitted on HELD-OUT events restricted to the interior (margin m px), where field-of-view entry/exit cannot matter.
-    python scripts/diag_dense_drift.py --objective ats_exact|mpcm|mpcm_no_tv|gradmag|cmax_var"""
+    python scripts/experiments/diag_dense_drift.py --objective ats_exact|mpcm|mpcm_no_tv|gradmag|cmax_var"""
 import argparse
 
 import torch

@@ -1,0 +1,8 @@
+objective=gradmag scene=translation
+  EPE interior(margin 10) 2.40   border 3.62
+  EPE interior(margin 20) 2.36   border 3.10
+  EPE interior(margin 30) 2.30   border 2.93
+  held-out events with margin>= 0px (n=50000):  score(fitted)-score(GT) = +0.02626  (relative +0.1619)
+  held-out events with margin>=10px (n=32457):  score(fitted)-score(GT) = +0.03533  (relative +0.1514)
+  held-out events with margin>=20px (n=17045):  score(fitted)-score(GT) = +0.08595  (relative +0.1845)
+  held-out events with margin>=30px (n=9045):  score(fitted)-score(GT) = +0.21184  (relative +0.2164)
